@@ -14,6 +14,7 @@ namespace BrianBot
     class OracleClass
     {
         public OracleConnection conn = null;
+        public OracleTransaction tran = null;
         
         private string _ConnectionString;
         private XmlClass _xFile;
@@ -111,7 +112,7 @@ namespace BrianBot
         {
             // This can be done for a lot of executenonquery //
             // Might need to bring this out in front of all the sql files, then one big commit at the end?
-            OracleTransaction tran = conn.BeginTransaction();
+            //OracleTransaction tran = conn.BeginTransaction();
             
             try
             {
@@ -121,7 +122,7 @@ namespace BrianBot
                 cmd.CommandType = CommandType.Text;
                 cmd.Transaction = tran;
                 cmd.ExecuteNonQuery();
-                tran.Commit();
+                //tran.Commit();
             }
             catch (Exception e)
             {

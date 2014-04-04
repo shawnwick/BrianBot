@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Xml;
+using System.IO;
 
 namespace BrianBot
 {
@@ -74,26 +75,31 @@ namespace BrianBot
             // Setup //
             XmlReaderSettings settings = new XmlReaderSettings();
             settings.IgnoreWhitespace = true;
-            XmlReader xReader = XmlReader.Create("XmlDefault.xml", settings);
 
             // Read XML File //
-            if (xReader != null)
+            if (File.Exists("XmlDefault.xml"))
             {
-                exists = true;
-                while (xReader.Read())
+                XmlReader xReader = XmlReader.Create("XmlDefault.xml", settings);
+
+                if (xReader != null)
                 {
-                    if (xReader.NodeType == XmlNodeType.Element)
+                    exists = true;
+                    while (xReader.Read())
                     {
-                        if (xReader.Name != "PenlinkDbSetup")
+                        if (xReader.NodeType == XmlNodeType.Element)
                         {
-                            Console.WriteLine(xReader.Name + " - " + xReader.GetAttribute(xReader.Name));
-                            XmlValues[xReader.Name] = xReader.GetAttribute(xReader.Name);
+                            if (xReader.Name != "PenlinkDbSetup")
+                            {
+                                Console.WriteLine(xReader.Name + " - " + xReader.GetAttribute(xReader.Name));
+                                XmlValues[xReader.Name] = xReader.GetAttribute(xReader.Name);
+                            }
                         }
                     }
-                }
+
+                    xReader.Close();
+                } 
             }
 
-            xReader.Close();
             return exists;
         }
     }

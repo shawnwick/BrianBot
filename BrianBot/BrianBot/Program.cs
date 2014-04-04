@@ -76,7 +76,7 @@ namespace BrianBot
                     TestDbConnection();
                     return true;
                 }
-                else if (arg == "-h")
+                else if (arg == "help")
                 {
                     ShowHelp();
                     return true;
@@ -126,7 +126,7 @@ namespace BrianBot
             Console.WriteLine();
             Console.WriteLine("*** Help File ***");
             Console.WriteLine();
-            Console.WriteLine("$ \"-h\" - Show help, but you new this already.");
+            Console.WriteLine("$ \"help\" - Show help, but you new this already.");
             Console.WriteLine("$ \"new_xml\" - Create a new default xml file \"XmlDefault.xml\".");
             Console.WriteLine("  This file can be modified for the correct database parameters.");
             Console.WriteLine("$ \"test_db_conn\" - Test the database connection to make sure the xml file is setup correctly.");

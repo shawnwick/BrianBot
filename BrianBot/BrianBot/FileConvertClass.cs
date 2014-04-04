@@ -23,7 +23,7 @@ namespace BrianBot
         }
 
         // This is for testing only //
-        StreamWriter sw = new StreamWriter(@"C:\Work\PL_SQL_Stuff\test_upgrade\Test.txt");
+        //StreamWriter sw = new StreamWriter(@"C:\Work\PL_SQL_Stuff\test_upgrade\Test.txt");
         
         public FileConvertClass()
         {
@@ -53,17 +53,18 @@ namespace BrianBot
 
         public void ReadFileToInsert(string FilePath)
         {
-            Console.WriteLine("Converting file " + FilePath + " to inserts into DB...");
-
-            //"set define off"
-	        //"update rt_upgrade u set u.upg_error_command_id=null, u.upg_error_ind='N', u.this_db_qualifies_ind='N' where u.upg_id="1";"
-	        //"delete from rt_upgrade_command;"
-
             // Local Variables //
             bool inBlock = false;
             string readLine = "";
             string insertHold = "";
+            Console.WriteLine("Converting file " + FilePath + " to inserts into DB...");
             
+            // Start the Oracle Stuff //
+            OracleClass oc = new OracleClass();
+            oc.Connect();
+            oc.tran = oc.conn.BeginTransaction();
+            oc.NonQuery("update rt_upgrade u set u.upg_error_command_id=null, u.upg_error_ind='N', u.this_db_qualifies_ind='N' where u.upg_id='1'");
+            oc.NonQuery("delete from rt_upgrade_command");
 
             // @"C:\Work\PL_SQL_Stuff\test_upgrade\E03toE04.pdc"
             var filestream = new FileStream(FilePath,FileMode.Open,FileAccess.Read,FileShare.ReadWrite);
@@ -100,14 +101,14 @@ namespace BrianBot
                         if (insertHold.IndexOf(";") != -1)
                         {
                             insertHold = insertHold.Replace(";", "");
-                            WriteInsertToOracle(ref insertHold);
+                            WriteInsertToOracle(ref insertHold,ref oc);
                         }
                     }
                     else
                     {
                         if (readLine == "/")
                         {
-                            WriteInsertToOracle(ref insertHold);
+                            WriteInsertToOracle(ref insertHold, ref oc);
                             inBlock = false;
                         }
                         else
@@ -118,24 +119,28 @@ namespace BrianBot
                 }
             }
 
-            sw.Close();
-            Console.WriteLine("EXX File Converted."); 
+            // Commit the transactions //
+            oc.tran.Commit();
+            oc.conn.Dispose();
+            //sw.Close();
+            
+            Console.WriteLine("File written to rt_upgrade_command."); 
         }
 
         /// <summary>
         /// Insert values into Oracle DB.
         /// </summary>
         /// <param name="insertHold"></param>
-        public void WriteInsertToOracle(ref string insertHold)
+        public void WriteInsertToOracle(ref string insertHold, ref OracleClass oc)
         {
             // Local Variables //
             string preview = "";
 
             // Setup Preview //
             if (insertHold.Length > 40)
-                preview = (insertHold.Substring(0, 40) + "...").Replace("\r\n","");
+                preview = "'" + ((insertHold.Substring(0, 40) + "...").Replace("\r\n", "")).Replace("'"," ") + "'";
             else
-                preview = (insertHold + "...").Replace("\r\n","");
+                preview = "'" + ((insertHold + "...").Replace("\r\n", "")).Replace("'"," ") + "'";
 
             // Final funky format of insert text //
             insertV.RetryType = GetRetryValue(insertHold);
@@ -152,21 +157,81 @@ namespace BrianBot
                 preview,
                 insertHold);
 
-            sw.WriteLine(insertTest);
+            // Check Size Constraint //
+            if (insertTest.Length >= 4000)
+            {
+                string declare = "";
+                string insertDeclare = "";
+                string testChar = "";
+                int chopPoint = 30000;
+
+                if (insertTest.Length > 30000)
+                {
+                    // Break in 30000 pieces //
+                    insertHold = insertHold.Substring(1, insertHold.Length - 2); //remove the "'"
+                    declare = "declare v_clob clob := null; begin ";
+
+                    // Get substring and check for "'" //
+                    testChar = insertHold.Substring(chopPoint, 1);
+                    while((chopPoint > 1) && (testChar == "'"))
+                    {
+                        chopPoint--;
+                        testChar = insertHold.Substring(chopPoint, 1);
+                    }
+                    
+                    declare = declare + "v_clob := " + "'" + insertHold.Substring(0, chopPoint) + "'" + "; ";
+                    insertHold = insertHold.Substring(chopPoint + 1);
+
+                    while (insertHold.Length > chopPoint)
+                    {
+                        chopPoint = 30000;
+					    testChar = insertHold.Substring(chopPoint,1);
+					    while ((chopPoint > 1) && (testChar == "'")) 
+                        {
+						    chopPoint--;
+						    testChar = insertHold.Substring(chopPoint,1);
+					    }
+					    declare = declare + "v_clob := v_clob||" + "'" + insertHold.Substring(0, chopPoint) + "'" + "; ";
+					    insertHold = insertHold.Substring(chopPoint + 1);
+				    }
+
+				    if (insertHold != "") 
+                    {
+					    declare = declare + "v_clob := v_clob||" + "'" + insertHold + "'" + "; ";
+				    }
+
+                    insertDeclare = string.Format("insert into rt_upgrade_command (upg_id,execution_order,final_ind,retry_type,section,preview,upg_command,success_ind) values (1,{0},{1},{2},{3},{4},{5},'N')",
+                    insertV.ExecutionOrder.ToString(),
+                    insertV.FinalIndication,
+                    insertV.RetryType,
+                    insertV.SectionNumber.ToString(),
+                    preview,
+                    "v_clob");
+
+                    declare = declare + insertDeclare + "; end;";
+                    oc.NonQuery(declare);
+                }
+                else
+                {
+                    declare = "declare v_clob clob := null; begin v_clob := " + insertHold + "; ";
+                    insertDeclare = string.Format("insert into rt_upgrade_command (upg_id,execution_order,final_ind,retry_type,section,preview,upg_command,success_ind) values (1,{0},{1},{2},{3},{4},{5},'N')",
+                    insertV.ExecutionOrder.ToString(),
+                    insertV.FinalIndication,
+                    insertV.RetryType,
+                    insertV.SectionNumber.ToString(),
+                    preview,
+                    "v_clob");
+
+                    declare = declare + insertDeclare + "; end;";
+                    oc.NonQuery(declare);
+                }
+            }
+            else
+            {
+                oc.NonQuery(insertTest);
+            }
+            //sw.WriteLine(insertTest);
             insertHold = "";
-
-            //OracleClass oc = new OracleClass();
-            //oc.Connect();
-
-            //foreach (string s in cString)
-            //{
-            //    if (s != "  ")
-            //    {
-            //        oc.NonQuery(s);
-            //    }
-            //}
-
-            //oc.conn.Dispose();
         }
 
         /// <summary>
