@@ -9,111 +9,163 @@ namespace BrianBot
 {
     class FileConvertClass
     {
-        private List<string> _StartInsert;
-        private Dictionary<string, string> _RetryCount;
+        #region Private Variables
+
+        private string currentEdition;
+        private string nextEdition;
+        private List<string> startInsert;
+        private Dictionary<string, string> retryCount;
+        private Dictionary<string,string> dbConnections;
 
         private InsertValues insertV; 
-        public class InsertValues
+        private class InsertValues
         {
-            public int SectionNumber;
-            public int ExecutionOrder;
-            public string FinalIndication;
-            public string RetryType;
-            public string UpgradId;
+            public int sectionNumber;
+            public int executionOrder;
+            public string finalIndication;
+            public string retryType;
+            public string upgradId;
         }
 
-        // This is for testing only //
-        //StreamWriter sw = new StreamWriter(@"C:\Work\PL_SQL_Stuff\test_upgrade\Test.txt");
-        
+        #endregion
+
+        /// <summary>
+        /// Constructor
+        /// </summary>
         public FileConvertClass()
         {
-            insertV = new InsertValues();
-            insertV.SectionNumber = 0;
-            insertV.ExecutionOrder = 1000;
-            insertV .FinalIndication= "'N'";
-            insertV.RetryType = "1";
-            insertV.UpgradId = "1";
+            currentEdition = "";
+            nextEdition = "";
             
-            _StartInsert = new List<string>();
-            _StartInsert.Add("create or replace and compile java source");
-            _StartInsert.Add("create or replace trigger");
-            _StartInsert.Add("create or replace package");
-            _StartInsert.Add("create or replace procedure");
-            _StartInsert.Add("create or replace function ");
-            _StartInsert.Add("declare");
-            _StartInsert.Add("begin");
+            insertV = new InsertValues();
+            insertV.sectionNumber = 0;
+            insertV.executionOrder = 1000;
+            insertV .finalIndication= "'N'";
+            insertV.retryType = "1";
+            insertV.upgradId = "1";
+            
+            startInsert = new List<string>();
+            startInsert.Add("create or replace and compile java source");
+            startInsert.Add("create or replace trigger");
+            startInsert.Add("create or replace package");
+            startInsert.Add("create or replace procedure");
+            startInsert.Add("create or replace function ");
+            startInsert.Add("declare");
+            startInsert.Add("begin");
 
-            _RetryCount = new Dictionary<string, string>();
-            _RetryCount.Add("drop", "2");
-            _RetryCount.Add("revoke", "2");
-            _RetryCount.Add("commit", "3");
-            _RetryCount.Add("grant", "3");
-            _RetryCount.Add("purge recyclebin", "3");
+            retryCount = new Dictionary<string, string>();
+            retryCount.Add("drop", "2");
+            retryCount.Add("revoke", "2");
+            retryCount.Add("commit", "3");
+            retryCount.Add("grant", "3");
+            retryCount.Add("purge recyclebin", "3");
+
+            dbConnections = new Dictionary<string, string>();
+            dbConnections.Add("lynx", "lynx/dang3r");
+            dbConnections.Add("lynx_ne", "lynx_ne/f3line");
+            dbConnections.Add("lynx_dev_ne", "lynx_dev_ne/f3line");
+            dbConnections.Add("lynx_dev", "lynx_dev/f3line");
+            dbConnections.Add("lynx_olap", "lynx_olap/dang3r");
+            dbConnections.Add("lynx_analysis", "lynx_analysis/dang3r");
         }
 
-        public void ReadFileToInsert(string FilePath)
+        /// <summary>
+        /// Reads the sql file and then parses and inserts it into the database.
+        /// </summary>
+        /// <param name="filePath"></param>
+        public void ReadFilesToInsert()
         {
-            // Local Variables //
-            bool inBlock = false;
-            string readLine = "";
-            string insertHold = "";
-            Console.WriteLine("Converting file " + FilePath + " to inserts into DB...");
+            Console.WriteLine("Converting files to inserts into DB...");
             
             // Start the Oracle Stuff //
             OracleClass oc = new OracleClass();
-            oc.Connect();
+            oc.Connect("lynx","dang3r");
             oc.tran = oc.conn.BeginTransaction();
-            oc.NonQuery("update rt_upgrade u set u.upg_error_command_id=null, u.upg_error_ind='N', u.this_db_qualifies_ind='N' where u.upg_id='1'");
-            oc.NonQuery("delete from rt_upgrade_command");
+            oc.NonQueryText("update rt_upgrade u set u.upg_error_command_id=null, u.upg_error_ind='N', u.this_db_qualifies_ind='N' where u.upg_id='1'");
+            oc.NonQueryText("delete from rt_upgrade_command");
 
-            // @"C:\Work\PL_SQL_Stuff\test_upgrade\E03toE04.pdc"
-            var filestream = new FileStream(FilePath,FileMode.Open,FileAccess.Read,FileShare.ReadWrite);
-            var file = new StreamReader(filestream, Encoding.UTF8, true, 128);
+            // Get all the schemas //
+            List<string> lynxFoldersAll = GetLynxFolders();
+            int numOfSchemas = lynxFoldersAll.Count;
 
-            while ((readLine = file.ReadLine()) != null)
+            // Go through each schema folder //
+            foreach (string lynxFolder in lynxFoldersAll)
             {
-                // Make space between executions //
-                insertV.ExecutionOrder = insertV.ExecutionOrder + 1000;
-                readLine = readLine.Replace("\r\n", "");
+                // Each Folder write connect with section //
+                WriteRunUpgrade(lynxFolder, numOfSchemas);
+                string insertTextHold = "";
+                bool inBlock = false;
+                string readLine = "";
+                int sectionNum = insertV.sectionNumber;
 
-                if (readLine == "")
+                // Go through each folder contained in the schema folder //
+                var dir = Directory.GetDirectories(lynxFolder);
+                foreach(string lynxSubFolder in dir)
                 {
-                    // Ignore nothing //
-                }
-                else if (readLine.IndexOf("--", StringComparison.OrdinalIgnoreCase) != -1)
-                {
-                    if (readLine.IndexOf("finalization section", StringComparison.OrdinalIgnoreCase) != -1)
-                        insertV.FinalIndication = "'Y'";
-                }
-                else if (readLine.IndexOf("connect", StringComparison.OrdinalIgnoreCase) == 0)
-                {
-                    insertV.SectionNumber++;
-                    insertHold = "";
-                }
-                else
-                {
-                    if (!inBlock)
-                        inBlock = CheckForBlock(readLine);
-
-                    if (!inBlock)
+                    // If 900 Folder then write to finalize, does execution order need to change? //
+                    insertV.finalIndication = "'N'";
+                    if (lynxSubFolder.IndexOf("900") != -1)
                     {
-                        insertHold = insertHold + readLine + "\r\n";
-                        if (insertHold.IndexOf(";") != -1)
-                        {
-                            insertHold = insertHold.Replace(";", "");
-                            WriteInsertToOracle(ref insertHold,ref oc);
-                        }
+                        WriteRunFinalize(lynxFolder, numOfSchemas);
+                        insertV.finalIndication = "'Y'";
+                        sectionNum = insertV.sectionNumber + numOfSchemas;
                     }
-                    else
+                    
+                    // Go through each file in the sub folders //
+                    var filesInLynxSubFolder = Directory.GetFiles(lynxSubFolder);
+                    foreach (string filePath in filesInLynxSubFolder)
                     {
-                        if (readLine == "/")
+                        StreamReader file = new StreamReader(filePath);
+                        while ((readLine = file.ReadLine()) != null)
                         {
-                            WriteInsertToOracle(ref insertHold, ref oc);
-                            inBlock = false;
-                        }
-                        else
-                        {
-                            insertHold = insertHold + readLine + "\r\n";
+                            insertV.executionOrder = insertV.executionOrder + 1000;
+                            readLine = readLine.Replace("\r\n", "");
+
+                            if (readLine == "")
+                            {
+                                // Ignore nothing //
+                            }
+                            //else if (readLine.IndexOf("--", StringComparison.OrdinalIgnoreCase) != -1)
+                            //{
+                                // This will now be in the final folder "900" instead of written on a line //
+                                //if (readLine.IndexOf("finalization section", StringComparison.OrdinalIgnoreCase) != -1)
+                                //    insertV.finalIndication = "'Y'";
+                            //}
+                            //else if (readLine.IndexOf("connect", StringComparison.OrdinalIgnoreCase) == 0)
+                            //{
+                                // Get Folder Name
+                                // check for section 900 (sectionNumber + 30)
+                                // this won't be connect anymore, it will just be the start of a new folder, so this can be moved up.
+                                //insertV.sectionNumber++;
+                                //insertTextHold = "";
+                            //}
+                            else
+                            {
+                                if (!inBlock)
+                                    inBlock = CheckForBlock(readLine);
+
+                                if (!inBlock)
+                                {
+                                    insertTextHold = insertTextHold + readLine + "\r\n";
+                                    if (insertTextHold.IndexOf(";") != -1)
+                                    {
+                                        insertTextHold = insertTextHold.Replace(";", "");
+                                        InsertIntoDatabase(ref insertTextHold, ref oc, sectionNum);
+                                    }
+                                }
+                                else
+                                {
+                                    if (readLine == "/")
+                                    {
+                                        InsertIntoDatabase(ref insertTextHold, ref oc, sectionNum);
+                                        inBlock = false;
+                                    }
+                                    else
+                                    {
+                                        insertTextHold = insertTextHold + readLine + "\r\n";
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -122,7 +174,6 @@ namespace BrianBot
             // Commit the transactions //
             oc.tran.Commit();
             oc.conn.Dispose();
-            //sw.Close();
             
             Console.WriteLine("File written to rt_upgrade_command."); 
         }
@@ -130,120 +181,122 @@ namespace BrianBot
         /// <summary>
         /// Insert values into Oracle DB.
         /// </summary>
-        /// <param name="insertHold"></param>
-        public void WriteInsertToOracle(ref string insertHold, ref OracleClass oc)
+        /// <param name="insertTextHold"></param>
+        public void InsertIntoDatabase(ref string insertTextHold, ref OracleClass oc, int sectionNum)
         {
             // Local Variables //
             string preview = "";
 
             // Setup Preview //
-            if (insertHold.Length > 40)
-                preview = "'" + ((insertHold.Substring(0, 40) + "...").Replace("\r\n", "")).Replace("'"," ") + "'";
+            if (insertTextHold.Length > 40)
+                preview = "'" + ((insertTextHold.Substring(0, 40) + "...").Replace("\r\n", "")).Replace("'"," ") + "'";
             else
-                preview = "'" + ((insertHold + "...").Replace("\r\n", "")).Replace("'"," ") + "'";
+                preview = "'" + ((insertTextHold).Replace("\r\n", "")).Replace("'"," ") + "'";
 
             // Final funky format of insert text //
-            insertV.RetryType = GetRetryValue(insertHold);
-            insertHold = insertHold.Replace("'", "''");
-            insertHold = insertHold + "\r\n\r\n\r\n";
-            insertHold = "'" + insertHold + "'";
+            insertV.retryType = GetRetryValue(insertTextHold);
+            insertTextHold = insertTextHold.Replace("'", "''");
+            insertTextHold = insertTextHold + "\r\n\r\n\r\n";
+            insertTextHold = "'" + insertTextHold + "'";
 
-            // Write insert to Oracle, test with text file first //
-            string insertTest = string.Format("insert into rt_upgrade_command (upg_id,execution_order,final_ind,retry_type,section,preview,upg_command,success_ind) values (1,{0},{1},{2},{3},{4},{5},'N')",
-                insertV.ExecutionOrder.ToString(),
-                insertV.FinalIndication,
-                insertV.RetryType,
-                insertV.SectionNumber.ToString(),
+            // Write insert to Oracle //
+            string insertText = string.Format("insert into rt_upgrade_command (upg_id,execution_order,final_ind,retry_type,section,preview,upg_command,success_ind) values (1,{0},{1},{2},{3},{4},{5},'N')",
+                insertV.executionOrder.ToString(),
+                insertV.finalIndication,
+                insertV.retryType,
+                sectionNum.ToString(),
                 preview,
-                insertHold);
+                insertTextHold);
 
             // Check Size Constraint //
-            if (insertTest.Length >= 4000)
+            if (insertText.Length >= 4000)
             {
                 string declare = "";
                 string insertDeclare = "";
                 string testChar = "";
-                int chopPoint = 30000;
+                const int MaxInsertSize = 30000;
+                int chopPoint = MaxInsertSize;
 
-                if (insertTest.Length > 30000)
+                if (insertText.Length > MaxInsertSize)
                 {
-                    // Break in 30000 pieces //
-                    insertHold = insertHold.Substring(1, insertHold.Length - 2); //remove the "'"
+                    // Break into pieces //
+                    insertTextHold = insertTextHold.Substring(1, insertTextHold.Length - 2); // remove the "'" from front and back
                     declare = "declare v_clob clob := null; begin ";
 
                     // Get substring and check for "'" //
-                    testChar = insertHold.Substring(chopPoint, 1);
+                    testChar = insertTextHold.Substring(chopPoint, 1);
                     while((chopPoint > 1) && (testChar == "'"))
                     {
                         chopPoint--;
-                        testChar = insertHold.Substring(chopPoint, 1);
+                        testChar = insertTextHold.Substring(chopPoint, 1);
                     }
                     
-                    declare = declare + "v_clob := " + "'" + insertHold.Substring(0, chopPoint) + "'" + "; ";
-                    insertHold = insertHold.Substring(chopPoint + 1);
+                    declare = declare + "v_clob := " + "'" + insertTextHold.Substring(0, chopPoint) + "'" + "; ";
+                    insertTextHold = insertTextHold.Substring(chopPoint + 1);
 
-                    while (insertHold.Length > chopPoint)
+                    while (insertTextHold.Length > chopPoint)
                     {
-                        chopPoint = 30000;
-					    testChar = insertHold.Substring(chopPoint,1);
+                        chopPoint = MaxInsertSize;
+					    testChar = insertTextHold.Substring(chopPoint,1);
 					    while ((chopPoint > 1) && (testChar == "'")) 
                         {
 						    chopPoint--;
-						    testChar = insertHold.Substring(chopPoint,1);
+						    testChar = insertTextHold.Substring(chopPoint,1);
 					    }
-					    declare = declare + "v_clob := v_clob||" + "'" + insertHold.Substring(0, chopPoint) + "'" + "; ";
-					    insertHold = insertHold.Substring(chopPoint + 1);
+					    declare = declare + "v_clob := v_clob||" + "'" + insertTextHold.Substring(0, chopPoint) + "'" + "; ";
+					    insertTextHold = insertTextHold.Substring(chopPoint + 1);
 				    }
 
-				    if (insertHold != "") 
+				    if (insertTextHold != "") 
                     {
-					    declare = declare + "v_clob := v_clob||" + "'" + insertHold + "'" + "; ";
+					    declare = declare + "v_clob := v_clob||" + "'" + insertTextHold + "'" + "; ";
 				    }
 
                     insertDeclare = string.Format("insert into rt_upgrade_command (upg_id,execution_order,final_ind,retry_type,section,preview,upg_command,success_ind) values (1,{0},{1},{2},{3},{4},{5},'N')",
-                    insertV.ExecutionOrder.ToString(),
-                    insertV.FinalIndication,
-                    insertV.RetryType,
-                    insertV.SectionNumber.ToString(),
+                    insertV.executionOrder.ToString(),
+                    insertV.finalIndication,
+                    insertV.retryType,
+                    sectionNum.ToString(),
                     preview,
                     "v_clob");
 
                     declare = declare + insertDeclare + "; end;";
-                    oc.NonQuery(declare);
+                    oc.NonQueryText(declare);
                 }
                 else
                 {
-                    declare = "declare v_clob clob := null; begin v_clob := " + insertHold + "; ";
+                    declare = "declare v_clob clob := null; begin v_clob := " + insertTextHold + "; ";
                     insertDeclare = string.Format("insert into rt_upgrade_command (upg_id,execution_order,final_ind,retry_type,section,preview,upg_command,success_ind) values (1,{0},{1},{2},{3},{4},{5},'N')",
-                    insertV.ExecutionOrder.ToString(),
-                    insertV.FinalIndication,
-                    insertV.RetryType,
-                    insertV.SectionNumber.ToString(),
+                    insertV.executionOrder.ToString(),
+                    insertV.finalIndication,
+                    insertV.retryType,
+                    sectionNum.ToString(),
                     preview,
                     "v_clob");
 
                     declare = declare + insertDeclare + "; end;";
-                    oc.NonQuery(declare);
+                    oc.NonQueryText(declare);
                 }
             }
             else
             {
-                oc.NonQuery(insertTest);
+                oc.NonQueryText(insertText);
             }
-            //sw.WriteLine(insertTest);
-            insertHold = "";
+            
+            // Clear text hold for next round //
+            insertTextHold = "";
         }
 
         /// <summary>
         /// Get retry value based off key word.
         /// </summary>
-        /// <param name="insertHold"></param>
+        /// <param name="insertTextHold"></param>
         /// <returns></returns>
-        public string GetRetryValue(string insertHold)
+        public string GetRetryValue(string insertTextHold)
         {
-            foreach (KeyValuePair<string, string> k in _RetryCount)
+            foreach (KeyValuePair<string, string> k in retryCount)
             {
-                if (insertHold.IndexOf(k.Key, StringComparison.OrdinalIgnoreCase) != -1)
+                if (insertTextHold.IndexOf(k.Key, StringComparison.OrdinalIgnoreCase) != -1)
                     return k.Value;
             }
 
@@ -257,13 +310,143 @@ namespace BrianBot
         /// <returns></returns>
         public bool CheckForBlock(string readLine)
         {
-            foreach (string s in _StartInsert)
+            foreach (string s in startInsert)
             {
                 if (readLine.IndexOf(s, StringComparison.OrdinalIgnoreCase) != -1)
                     return true;
             }
 
             return false;
-        }     
+        }
+
+        /// <summary>
+        /// Get the lynx folder paths and store them.
+        /// </summary>
+        /// <returns></returns>
+        public List<string> GetLynxFolders()
+        {
+            // Get the current and next Edition //
+            using (var sr = new StreamReader(@"Z:\BrianF\X Project\Architecture\Build Automation\$X\Database\Trunk\DB Scripts\Current Edition.txt"))
+            {
+                currentEdition = sr.ReadLine();
+                nextEdition = sr.ReadLine();
+            }
+
+            // Count number of schemas //
+            List<string> lynxHold = new List<string>();
+            string folderPath = @"Z:\BrianF\X Project\Architecture\Build Automation\$X\Database\Trunk\DB Scripts\10_Structure\" + currentEdition;
+            string[] dir = Directory.GetDirectories(folderPath);
+            foreach (string s in dir)
+            {
+                if (s.IndexOf("lynx",StringComparison.OrdinalIgnoreCase) != -1)
+                    lynxHold.Add(s);
+            }
+
+            return lynxHold;
+        }
+
+        /// <summary>
+        /// Write connect commands to run_upgrade.
+        /// </summary>
+        /// <param name="folder"></param>
+        /// <param name="numOfSchemas"></param>
+        public void WriteRunUpgrade(string folder, int numOfSchemas)
+        {
+            insertV.sectionNumber++;
+
+            // Check for Edition Schema file //
+            string editionString = "";
+            if(File.Exists(folder + "\\Editioned Schema.txt"))
+                editionString = "edition=" + currentEdition;
+
+            // Get Lynx name only //
+            string lynxFolderName = Path.GetFileName(folder);
+            int i = lynxFolderName.IndexOf("lynx", StringComparison.OrdinalIgnoreCase);
+            lynxFolderName = lynxFolderName.Remove(0, i).ToLower();
+
+            // Get upgrad file //
+            DirectoryInfo di = Directory.GetParent(folder);
+            string pdcFile = di.FullName + "\\05_UPGRADE\\50_run_upgrade_shawn.pdc";
+            if (insertV.sectionNumber == 1)
+                File.Delete(pdcFile);
+
+            // Write to 05_UPGRADE 50_run_upgrade_shawn.pdc //
+            if (File.Exists(pdcFile))
+            {
+                using (StreamWriter sw = File.AppendText(pdcFile))
+                {
+                    string s = "";
+                    if (dbConnections.TryGetValue(lynxFolderName, out s))
+                    {
+                        sw.WriteLine("connect " + s + " " + editionString);
+                        sw.WriteLine("execute lynx.upgrade_pkg.upgrade(" + insertV.sectionNumber.ToString() + ");");
+                    }
+                }
+            }
+            else
+            {
+                FileStream fs = File.Create(pdcFile);
+                using (StreamWriter sw = new StreamWriter(fs))
+                {
+                    string s = "";
+                    if (dbConnections.TryGetValue(lynxFolderName, out s))
+                    {
+                        sw.WriteLine("connect " + s + " " + editionString);
+                        sw.WriteLine("execute lynx.upgrade_pkg.upgrade(" + insertV.sectionNumber.ToString() + ");");
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Write connect commands to run_finalization.
+        /// </summary>
+        /// <param name="folder"></param>
+        /// <param name="numOfSchemas"></param>
+        public void WriteRunFinalize(string folder, int numOfSchemas)
+        {
+            // Check for Edition Schema file //
+            string editionString = "";
+            if (File.Exists(folder + "\\Editioned Schema.txt"))
+                editionString = "edition=" + currentEdition;
+
+            // Get Lynx name only //
+            string lynxFolderName = Path.GetFileName(folder);
+            int i = lynxFolderName.IndexOf("lynx", StringComparison.OrdinalIgnoreCase);
+            lynxFolderName = lynxFolderName.Remove(0, i).ToLower();
+
+            // Get finalized file //
+            DirectoryInfo di = Directory.GetParent(folder);
+            string pdcFile = di.FullName + "\\05_UPGRADE\\60_run_finalization_shawn.pdc";
+            if (insertV.sectionNumber == 1)
+                File.Delete(pdcFile);
+
+            // Write to 05_UPGRADE 60_run_finalization_shawn.pdc //
+            if (File.Exists(pdcFile))
+            {
+                using (StreamWriter sw = File.AppendText(pdcFile))
+                {
+                    string s = "";
+                    if (dbConnections.TryGetValue(lynxFolderName, out s))
+                    {
+                        sw.WriteLine("connect " + s + " " + editionString);
+                        sw.WriteLine("execute lynx.upgrade_pkg.upgrade(" + (insertV.sectionNumber + numOfSchemas).ToString() + ");");
+                    }
+                }
+            }
+            else
+            {
+                FileStream fs = File.Create(pdcFile);
+                using (StreamWriter sw = new StreamWriter(fs))
+                {
+                    string s = "";
+                    if (dbConnections.TryGetValue(lynxFolderName, out s))
+                    {
+                        sw.WriteLine("connect " + s + " " + editionString);
+                        sw.WriteLine("execute lynx.upgrade_pkg.upgrade(" + (insertV.sectionNumber + numOfSchemas).ToString() + ");");
+                    }
+                }
+            }
+        }
     }
 }

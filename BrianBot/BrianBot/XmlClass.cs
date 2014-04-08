@@ -27,8 +27,8 @@ namespace BrianBot
             //XmlValues.Add("UserID", "lynx_app");
             //XmlValues.Add("Password", "f3line");
             //XmlValues.Add("Host", "oracleserver1");
-            XmlValues.Add("UserID", "lynx");
-            XmlValues.Add("Password", "dang3r");
+            //XmlValues.Add("UserID", "lynx");
+            //XmlValues.Add("Password", "dang3r");
             XmlValues.Add("Host", "oracledba-beta");
             XmlValues.Add("Protocol", "TCP");
             XmlValues.Add("Port", "1521");

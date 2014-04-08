@@ -16,8 +16,8 @@ namespace BrianBot
         public OracleConnection conn = null;
         public OracleTransaction tran = null;
         
-        private string _ConnectionString;
-        private XmlClass _xFile;
+        private string connectionString;
+        private XmlClass xmlFile;
         private Timer _ReadDbTimer;  // there will be multiple of these for each, so can check when finished
         
         /// <summary>
@@ -25,7 +25,7 @@ namespace BrianBot
         /// </summary>
         public OracleClass()
         {
-            _xFile = new XmlClass();
+            xmlFile = new XmlClass();
         }
 
         public void ReadTimerSetup()
@@ -45,41 +45,55 @@ namespace BrianBot
         /// <summary>
         /// Setup connection based on XML or default values.
         /// </summary>
-        public void ConnectionSetup()
+        public void ConnectionSetup(string UserId, string Password)
         {
             // Read XML File //
-            _xFile.ReadFile();
+            xmlFile.ReadFile();
+
+            System.Data.Common.DbConnectionStringBuilder dbs = new DbConnectionStringBuilder();
+            //dbs.us
 
             // Store Builder Values //
             Oracle.DataAccess.Client.OracleConnectionStringBuilder builder = new Oracle.DataAccess.Client.OracleConnectionStringBuilder();
-            builder.MinPoolSize = Convert.ToInt32(_xFile.XmlValues["MinPoolSize"]);
-            builder.ConnectionLifeTime = Convert.ToInt32(_xFile.XmlValues["ConnectionLifeTime"]);
-            builder.ConnectionTimeout = Convert.ToInt32(_xFile.XmlValues["ConnectionTimeout"]);
-            builder.IncrPoolSize = Convert.ToInt32(_xFile.XmlValues["IncrPoolSize"]);
-            builder.DecrPoolSize = Convert.ToInt32(_xFile.XmlValues["DecrPoolSize"]);
-            builder.MaxPoolSize = Convert.ToInt32(_xFile.XmlValues["MaxPoolSize"]);
-            builder.ValidateConnection = Convert.ToBoolean(_xFile.XmlValues["ValidateConnection"]);
-            builder.UserID = _xFile.XmlValues["UserID"];
-            builder.Password = _xFile.XmlValues["Password"];
+            //builder.UserID = xmlFile.XmlValues["UserID"];
+            //builder.Password = xmlFile.XmlValues["Password"];
+            builder.UserID = UserId;
+            builder.Password = Password;
+           
+            builder.MinPoolSize = Convert.ToInt32(xmlFile.XmlValues["MinPoolSize"]);
+            builder.ConnectionLifeTime = Convert.ToInt32(xmlFile.XmlValues["ConnectionLifeTime"]);
+            builder.ConnectionTimeout = Convert.ToInt32(xmlFile.XmlValues["ConnectionTimeout"]);
+            builder.IncrPoolSize = Convert.ToInt32(xmlFile.XmlValues["IncrPoolSize"]);
+            builder.DecrPoolSize = Convert.ToInt32(xmlFile.XmlValues["DecrPoolSize"]);
+            builder.MaxPoolSize = Convert.ToInt32(xmlFile.XmlValues["MaxPoolSize"]);
+            builder.ValidateConnection = Convert.ToBoolean(xmlFile.XmlValues["ValidateConnection"]);
+            
             builder.DataSource = string.Format("(DESCRIPTION=(ADDRESS_LIST=(ADDRESS=(PROTOCOL={0})(HOST={1})(PORT={2})))(CONNECT_DATA=(SERVICE_NAME={3})))", 
-                                                _xFile.XmlValues["Protocol"], 
-                                                _xFile.XmlValues["Host"], 
-                                                _xFile.XmlValues["Port"], 
-                                                _xFile.XmlValues["ServiceName"]);
-            _ConnectionString = builder.ConnectionString;
+                                                xmlFile.XmlValues["Protocol"], 
+                                                xmlFile.XmlValues["Host"], 
+                                                xmlFile.XmlValues["Port"], 
+                                                xmlFile.XmlValues["ServiceName"]);
+            connectionString = builder.ConnectionString;
         }
 
         /// <summary>
         /// Connect with Database and return connection.
         /// </summary>
         /// <returns></returns>
-        public void Connect()
+        public void Connect(string UserId, string Password, string Privilege = "")
         {
-            ConnectionSetup();
+            ConnectionSetup(UserId, Password);
+            
+            if (Privilege != "")
+                connectionString = "DBA Privilege=" + Privilege + ";" + connectionString;
+            
+            Console.WriteLine("UserID - " + UserId);
+            Console.WriteLine("Password - " + Password);
+            Console.WriteLine("Privilege - " + Privilege);
 
             try
             {
-                conn = new OracleConnection(_ConnectionString);
+                conn = new OracleConnection(connectionString);
                 conn.Open();
                 Console.WriteLine("Database Connection Success!");
             }
@@ -108,12 +122,8 @@ namespace BrianBot
         /// For executing sql scripts that are read into the program.
         /// </summary>
         /// <param name="CommandText"></param>
-        public void NonQuery(string CommandText)
+        public void NonQueryText(string CommandText)
         {
-            // This can be done for a lot of executenonquery //
-            // Might need to bring this out in front of all the sql files, then one big commit at the end?
-            //OracleTransaction tran = conn.BeginTransaction();
-            
             try
             {
                 OracleCommand cmd = new OracleCommand();
@@ -122,7 +132,32 @@ namespace BrianBot
                 cmd.CommandType = CommandType.Text;
                 cmd.Transaction = tran;
                 cmd.ExecuteNonQuery();
-                //tran.Commit();
+            }
+            catch (Exception e)
+            {
+                tran.Rollback();
+                Console.WriteLine(e.ToString());
+            }
+        }
+
+        public void NonQueryProcedure(ProcedureInputClass pic)
+        {
+            try
+            {
+                OracleCommand cmd = new OracleCommand();
+                cmd.Connection = conn;
+                
+                cmd.CommandText = pic.procedureName;
+                cmd.CommandType = CommandType.StoredProcedure;
+                
+                //cmd.Parameters.Add("i_section_number", 1);
+                for (int i = 0; i < pic.numberOfParameters; i++)
+                {
+                    cmd.Parameters.Add(pic.parameterName[i], pic.parameterValue[i]);
+                }
+                
+                cmd.Transaction = tran;
+                cmd.ExecuteNonQuery();
             }
             catch (Exception e)
             {

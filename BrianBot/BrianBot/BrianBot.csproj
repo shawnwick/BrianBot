@@ -48,7 +48,9 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="FileConvertClass.cs" />
+    <Compile Include="GetConfigurationClass.cs" />
     <Compile Include="OracleClass.cs" />
+    <Compile Include="ProcedureInputClass.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="XmlClass.cs" />
