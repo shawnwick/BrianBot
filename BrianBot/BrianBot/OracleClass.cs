@@ -50,13 +50,8 @@ namespace BrianBot
             // Read XML File //
             xmlFile.ReadFile();
 
-            System.Data.Common.DbConnectionStringBuilder dbs = new DbConnectionStringBuilder();
-            //dbs.us
-
             // Store Builder Values //
             Oracle.DataAccess.Client.OracleConnectionStringBuilder builder = new Oracle.DataAccess.Client.OracleConnectionStringBuilder();
-            //builder.UserID = xmlFile.XmlValues["UserID"];
-            //builder.Password = xmlFile.XmlValues["Password"];
             builder.UserID = UserId;
             builder.Password = Password;
            
@@ -74,6 +69,14 @@ namespace BrianBot
                                                 xmlFile.XmlValues["Port"], 
                                                 xmlFile.XmlValues["ServiceName"]);
             connectionString = builder.ConnectionString;
+        }
+
+        /// <summary>
+        /// Connect with default User ID and Password.
+        /// </summary>
+        public void Connect()
+        {
+            Connect(xmlFile.XmlValues["UserID"], xmlFile.XmlValues["Password"]);
         }
 
         /// <summary>
