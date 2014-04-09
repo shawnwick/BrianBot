@@ -93,7 +93,7 @@ namespace BrianBot
 
         public void RunUpgrade()
         {
-            // This could be done by reading the File Convert "connects" in and storing them, or reading the file name.  Wait for demo of upgrade before testing thsi.
+            // This could be done by reading the File Convert "connects" in and storing them, or reading the file name.  Wait for demo of upgrade before testing this.
             
             //OracleClass oc = new OracleClass();
             //oc.Connect("lynx", "dang3r");

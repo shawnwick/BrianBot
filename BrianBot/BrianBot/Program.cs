@@ -32,9 +32,9 @@ namespace BrianBot
         /// </summary>
         static void ReadFileToInsert()
         {
-            // string should be folder location got from config info //
             FileConvertClass fcc = new FileConvertClass();
-            fcc.ReadFilesToInsert();
+            fcc.ReadFilesToInsert("Structure");
+            fcc.ReadFilesToInsert("Code");
         }
 
         /// <summary>

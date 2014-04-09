@@ -89,7 +89,9 @@ namespace BrianBot
             
             if (Privilege != "")
                 connectionString = "DBA Privilege=" + Privilege + ";" + connectionString;
-            
+
+            Console.WriteLine();
+            Console.WriteLine("**** Database Connection Variables ****");
             Console.WriteLine("UserID - " + UserId);
             Console.WriteLine("Password - " + Password);
             Console.WriteLine("Privilege - " + Privilege);
@@ -99,6 +101,7 @@ namespace BrianBot
                 conn = new OracleConnection(connectionString);
                 conn.Open();
                 Console.WriteLine("Database Connection Success!");
+                Console.WriteLine();
             }
             catch (OracleException e)
             {

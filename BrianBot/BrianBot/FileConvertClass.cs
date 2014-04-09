@@ -73,26 +73,36 @@ namespace BrianBot
         /// Reads the sql file and then parses and inserts it into the database.
         /// </summary>
         /// <param name="filePath"></param>
-        public void ReadFilesToInsert()
+        public void ReadFilesToInsert(string scriptType)
         {
-            Console.WriteLine("Converting files to inserts into DB...");
+            Console.WriteLine("Converting " + scriptType + " files to inserts into DB...");
+            insertV.sectionNumber = 0;
             
             // Start the Oracle Stuff //
             OracleClass oc = new OracleClass();
             oc.Connect();
             oc.tran = oc.conn.BeginTransaction();
-            oc.NonQueryText("update rt_upgrade u set u.upg_error_command_id=null, u.upg_error_ind='N', u.this_db_qualifies_ind='N' where u.upg_id='1'");
-            oc.NonQueryText("delete from rt_upgrade_command");
-
+            
             // Get all the schema folders //
-            List<string> lynxFoldersAll = GetLynxFolders();
-            int numOfSchemas = lynxFoldersAll.Count;
+            List<string> lynxFoldersAll;
+            if (scriptType == "Structure")
+            {
+                oc.NonQueryText("update rt_upgrade u set u.upg_error_command_id=null, u.upg_error_ind='N', u.this_db_qualifies_ind='N' where u.upg_id='1'");
+                oc.NonQueryText("delete from rt_upgrade_command");
+                lynxFoldersAll = GetStructureLynxFolders();
+            }
+            else
+            {
+                lynxFoldersAll = GetCodeLynxFolders();
+            }
 
             // Go through each schema folder //
             foreach (string lynxFolder in lynxFoldersAll)
             {
                 // Each Folder write connect with section //
-                WriteRunUpgrade(lynxFolder, numOfSchemas);
+                insertV.sectionNumber++;
+                if (scriptType == "Structure")
+                    WriteRunUpgrade(lynxFolder);
                 
                 // Go through each folder contained in the schema folder //
                 var lynxSubFolderList = Directory.GetDirectories(lynxFolder);
@@ -103,9 +113,10 @@ namespace BrianBot
                     int sectionNum = insertV.sectionNumber;
                     if (lynxSubFolder.IndexOf("900") != -1)
                     {
-                        WriteRunFinalize(lynxFolder, numOfSchemas);
                         insertV.finalIndication = "'Y'";
-                        sectionNum = insertV.sectionNumber + numOfSchemas;
+                        sectionNum = insertV.sectionNumber + lynxFoldersAll.Count;
+                        if (scriptType == "Structure")
+                            WriteRunFinalize(lynxFolder, lynxFoldersAll.Count);
                     }
                     
                     // Go through each file in the sub folders //
@@ -119,7 +130,7 @@ namespace BrianBot
             oc.tran.Commit();
             oc.conn.Dispose();
             
-            Console.WriteLine("File written to rt_upgrade_command."); 
+            Console.WriteLine(scriptType + " files written to rt_upgrade_command."); 
         }
 
         /// <summary>
@@ -314,10 +325,10 @@ namespace BrianBot
         }
 
         /// <summary>
-        /// Get the lynx folder paths and store them.
+        /// Get the structure lynx folder paths and store them.
         /// </summary>
         /// <returns></returns>
-        public List<string> GetLynxFolders()
+        public List<string> GetStructureLynxFolders()
         {
             // Get the current and next Edition //
             using (var sr = new StreamReader(@"Z:\BrianF\X Project\Architecture\Build Automation\$X\Database\Trunk\DB Scripts\Current Edition.txt"))
@@ -340,14 +351,30 @@ namespace BrianBot
         }
 
         /// <summary>
+        /// Get the code lynx folder paths and store them.
+        /// </summary>
+        /// <returns></returns>
+        public List<string> GetCodeLynxFolders()
+        {
+            // Count number of schemas //
+            List<string> lynxFolderHold = new List<string>();
+            string folderPath = @"Z:\BrianF\X Project\Architecture\Build Automation\$X\Database\Trunk\DB Scripts\20_Code";
+            string[] dir = Directory.GetDirectories(folderPath);
+            foreach (string s in dir)
+            {
+                if (s.IndexOf("lynx", StringComparison.OrdinalIgnoreCase) != -1)
+                    lynxFolderHold.Add(s);
+            }
+
+            return lynxFolderHold;
+        }
+
+        /// <summary>
         /// Write connect commands to run_upgrade.
         /// </summary>
         /// <param name="lynxFolder"></param>
-        /// <param name="numOfSchemas"></param>
-        public void WriteRunUpgrade(string lynxFolder, int numOfSchemas)
+        public void WriteRunUpgrade(string lynxFolder)
         {
-            insertV.sectionNumber++;
-
             // Check for Edition Schema file //
             string editionString = "";
             if(File.Exists(lynxFolder + "\\Editioned Schema.txt"))
