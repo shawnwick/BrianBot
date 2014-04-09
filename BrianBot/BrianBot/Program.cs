@@ -4,20 +4,28 @@ using System.Linq;
 using System.Text;
 using System.Diagnostics;
 using System.Reflection;
+using System.Threading;
+using System.Speech.Synthesis;
+using System.Speech.AudioFormat;
 
 namespace BrianBot
 {
     class Program
     {
+        public static string CurrentEdition;
+        public static string NextEdition;
+        
         static void Main(string[] args)
         {
             if (CheckArgs(args))
                 return;
 
+            FunSoundsAndColor();
             //UpdateTfs();
             //GetConfigurationClass gcc = ReadConfigFile();
             ReadSqlFilesToInsert();
             ExecuteClrDll();
+            ExportUpgradePackage();
 
             Console.WriteLine("** Brian Bot Finished, press enter to exit! **");
             Console.ReadLine();
@@ -92,6 +100,34 @@ namespace BrianBot
         }
 
         /// <summary>
+        /// Create the exported dump and log file.
+        /// </summary>
+        static void ExportUpgradePackage()
+        {
+            // C:\app\SScribner\product\11.2.0\client_1\BIN
+            // impdp lynx/dang3r DUMPFILE=%1.dmp LOGFILE=%1.log TABLE_EXISTS_ACTION=REPLACE
+
+            Console.WriteLine("Create an Export dmp file...");
+
+            XmlClass xClass = new XmlClass();
+            xClass.ReadFile();
+            string savelocation = xClass.XmlValues["StartLocation"] + "\\DB_Upgrades\\E07_to_E08";
+            string oracleLocation = xClass.XmlValues["OracleLocation"];
+
+            string fileName = "upg_" + CurrentEdition + "_" + NextEdition;
+            Process p = new Process();
+            p.StartInfo.FileName = "expdp.exe";
+            p.StartInfo.WorkingDirectory = oracleLocation;
+            p.StartInfo.Arguments = "lynx@beta/dang3r DUMPFILE=" + fileName + ".dmp LOGFILE=" + fileName + ".log REUSE_DUMPFILES=YES";
+            p.Start();
+            p.WaitForExit();
+
+            // Need to move dmp file after it is created to repository:
+
+            Console.WriteLine("Export dmp file has been created!");
+        }
+
+        /// <summary>
         /// Get the files and insert them into the database.
         /// </summary>
         static void ReadSqlFilesToInsert()
@@ -101,6 +137,8 @@ namespace BrianBot
                 FileConvertClass fcc = new FileConvertClass();
                 fcc.ReadFilesToInsert("Structure");
                 fcc.ReadFilesToInsert("Code");
+                CurrentEdition = fcc.CurrentEdition;
+                NextEdition = fcc.NextEdition;
             }
             catch (Exception e)
             {
@@ -151,6 +189,25 @@ namespace BrianBot
             Console.WriteLine("$ version - Show the current software version.");
             Console.WriteLine();
             Console.WriteLine("*** End of Help File ***");
+        }
+
+        /// <summary>
+        /// Fun sounds for the program.
+        /// </summary>
+        static void FunSoundsAndColor()
+        {
+            Console.Title = "Brian Bot";
+            Console.BackgroundColor = ConsoleColor.Black;
+            Console.ForegroundColor = ConsoleColor.Green;
+            
+            SpeechSynthesizer synth = new SpeechSynthesizer();
+            synth.Rate = -2;
+            synth.SetOutputToDefaultAudioDevice();
+            synth.Speak("Brian bot is alive");
+            
+            Console.Beep(400, 150);
+            Console.Beep(600, 150);
+            Console.Beep(500, 150);
         }
 
         /*******************************************************************************************************/

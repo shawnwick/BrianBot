@@ -34,6 +34,7 @@ namespace BrianBot
             XmlValues.Add("Port", "1521");
             XmlValues.Add("ServiceName", "pldb");
             XmlValues.Add("StartLocation", @"\\pl2600\Users\BrianF\X Project\Architecture\Build Automation\$X\Database\Trunk");
+            XmlValues.Add("OracleLocation", @"C:\app\SScribner\product\11.2.0\client_1\BIN");
         }
 
         /// <summary>

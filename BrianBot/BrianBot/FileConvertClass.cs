@@ -9,10 +9,20 @@ namespace BrianBot
 {
     class FileConvertClass
     {
-        #region Private Variables
+        #region Variables
 
         private string currentEdition;
+        public string CurrentEdition
+        {
+            get { return currentEdition; }
+        }
+        
         private string nextEdition;
+        public string NextEdition
+        {
+            get { return nextEdition; }
+        }
+
         private List<string> startInsert;
         private Dictionary<string, string> retryCount;
         private Dictionary<string,string> dbConnections;
@@ -333,7 +343,7 @@ namespace BrianBot
         {
             try
             {
-                // For testing right now
+                // Get Location //
                 XmlClass xClass = new XmlClass();
                 xClass.ReadFile();
                 string baseFolder = xClass.XmlValues["StartLocation"];
@@ -372,7 +382,7 @@ namespace BrianBot
         {
             try
             {
-                // For testing right now
+                // Get Location //
                 XmlClass xClass = new XmlClass();
                 xClass.ReadFile();
                 string baseFolder = xClass.XmlValues["StartLocation"];
