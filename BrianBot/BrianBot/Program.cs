@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Diagnostics;
+using System.Reflection;
 
 namespace BrianBot
 {
@@ -61,6 +62,11 @@ namespace BrianBot
                     Console.WriteLine("Privilege: ");
                     string Privilege = Console.ReadLine();
                     TestDbConnection(UserId, Password, Privilege);
+                    return true;
+                }
+                else if (arg == "version")
+                {
+                    Console.WriteLine("Version - " + Assembly.GetEntryAssembly().GetName().Version.ToString());
                     return true;
                 }
                 else if (arg == "help")
@@ -123,10 +129,10 @@ namespace BrianBot
             Console.WriteLine();
             Console.WriteLine("*** Help File ***");
             Console.WriteLine();
-            Console.WriteLine("$ help - Show help, but you new this already.");
             Console.WriteLine("$ newxml - Create a new default xml file \"XmlDefault.xml\".");
             Console.WriteLine("  This file can be modified for the correct database parameters.");
-            Console.WriteLine("$ testdb - Test the database connection to make sure the xml file is setup correctly.");
+            Console.WriteLine("$ testdb - Test a database connection.");
+            Console.WriteLine("$ version - Show the current software version.");
             Console.WriteLine();
             Console.WriteLine("*** End of Help File ***");
         }
