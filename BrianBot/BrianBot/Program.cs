@@ -16,26 +16,11 @@ namespace BrianBot
 
             //UpdateTfs();
             //GetConfigurationClass gcc = ReadConfigFile();
-            ReadFileToInsert();
+            ReadSqlFilesToInsert();
+            ExecuteClrDll();
 
+            Console.WriteLine("** Brian Bot Finished, press enter to exit! **");
             Console.ReadLine();
-        }
-
-        static GetConfigurationClass ReadConfigFile()
-        {
-            GetConfigurationClass g = new GetConfigurationClass();
-            g.ReadConfig();
-            return g;
-        }
-
-        /// <summary>
-        /// Get the files and insert them into the database.
-        /// </summary>
-        static void ReadFileToInsert()
-        {
-            FileConvertClass fcc = new FileConvertClass();
-            fcc.ReadFilesToInsert("Structure");
-            fcc.ReadFilesToInsert("Code");
         }
 
         /// <summary>
@@ -85,6 +70,46 @@ namespace BrianBot
         }
 
         /// <summary>
+        /// Run Procedure lynx.store_clr_dlls.
+        /// </summary>
+        static void ExecuteClrDll()
+        {
+            Console.WriteLine("Running lynx.store_clr_dlls ...");
+            
+            OracleClass oc = new OracleClass();
+            oc.Connect();
+            oc.tran = oc.conn.BeginTransaction();
+
+            ProcedureInputClass pic = new ProcedureInputClass();
+            pic.numberOfParameters = 0;
+            pic.procedureName = "lynx.store_clr_dlls";
+            oc.NonQueryProcedure(pic);
+            
+            oc.tran.Commit();
+            oc.conn.Close();
+
+            Console.WriteLine("Finished lynx.store_clr_dlls.");
+        }
+
+        /// <summary>
+        /// Get the files and insert them into the database.
+        /// </summary>
+        static void ReadSqlFilesToInsert()
+        {
+            try
+            {
+                FileConvertClass fcc = new FileConvertClass();
+                fcc.ReadFilesToInsert("Structure");
+                fcc.ReadFilesToInsert("Code");
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+                Console.WriteLine("Make sure XmlDefault.xml is setup correctly.");
+            }
+        }
+
+        /// <summary>
         /// Run the batch file to update TFS with latest.
         /// </summary>
         static void UpdateTfs()
@@ -93,15 +118,6 @@ namespace BrianBot
             Process p = Process.Start("getlatest_tfs.bat");
             p.WaitForExit();
             Console.WriteLine("TFS has been updated!");
-        }
-
-        static void OpenSqlPlus()
-        {
-            Process p = new Process();
-            p.StartInfo.FileName = @"C:\app\SScribner\product\11.2.0\client_1\BIN\sqlplus.exe";
-            p.StartInfo.Arguments = "lynx_app@SVR1/f3line";
-            p.Start();
-            p.WaitForExit();
         }
 
         /// <summary>
@@ -137,6 +153,30 @@ namespace BrianBot
             Console.WriteLine("*** End of Help File ***");
         }
 
+        /*******************************************************************************************************/
+        /*******************************************************************************************************/
+        /********************************************************************************************************
+        Put stuff here that is test code that may or may not be in the final code.
+        ********************************************************************************************************/
+        /*******************************************************************************************************/
+        /*******************************************************************************************************/
+
+        static GetConfigurationClass ReadConfigFile()
+        {
+            GetConfigurationClass g = new GetConfigurationClass();
+            g.ReadConfig();
+            return g;
+        }
+        
+        static void OpenSqlPlus()
+        {
+            Process p = new Process();
+            p.StartInfo.FileName = @"C:\app\SScribner\product\11.2.0\client_1\BIN\sqlplus.exe";
+            p.StartInfo.Arguments = "lynx_app@SVR1/f3line";
+            p.Start();
+            p.WaitForExit();
+        }
+        
         static void OldTestStuff()
         {
             // sql plus test //

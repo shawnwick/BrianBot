@@ -33,6 +33,7 @@ namespace BrianBot
             XmlValues.Add("Protocol", "TCP");
             XmlValues.Add("Port", "1521");
             XmlValues.Add("ServiceName", "pldb");
+            XmlValues.Add("StartLocation", @"\\pl2600\Users\BrianF\X Project\Architecture\Build Automation\$X\Database\Trunk");
         }
 
         /// <summary>
@@ -90,7 +91,7 @@ namespace BrianBot
                         {
                             if (xReader.Name != "PenlinkDbSetup")
                             {
-                                Console.WriteLine(xReader.Name + " - " + xReader.GetAttribute(xReader.Name));
+                                //Console.WriteLine(xReader.Name + " - " + xReader.GetAttribute(xReader.Name));
                                 XmlValues[xReader.Name] = xReader.GetAttribute(xReader.Name);
                             }
                         }

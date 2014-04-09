@@ -130,7 +130,8 @@ namespace BrianBot
             oc.tran.Commit();
             oc.conn.Dispose();
             
-            Console.WriteLine(scriptType + " files written to rt_upgrade_command."); 
+            Console.WriteLine(scriptType + " files written to rt_upgrade_command.");
+            Console.WriteLine();
         }
 
         /// <summary>
@@ -330,24 +331,37 @@ namespace BrianBot
         /// <returns></returns>
         public List<string> GetStructureLynxFolders()
         {
-            // Get the current and next Edition //
-            using (var sr = new StreamReader(@"Z:\BrianF\X Project\Architecture\Build Automation\$X\Database\Trunk\DB Scripts\Current Edition.txt"))
+            try
             {
-                currentEdition = sr.ReadLine();
-                nextEdition = sr.ReadLine();
-            }
+                // For testing right now
+                XmlClass xClass = new XmlClass();
+                xClass.ReadFile();
+                string baseFolder = xClass.XmlValues["StartLocation"];
 
-            // Count number of schemas //
-            List<string> lynxFolderHold = new List<string>();
-            string folderPath = @"Z:\BrianF\X Project\Architecture\Build Automation\$X\Database\Trunk\DB Scripts\10_Structure\" + currentEdition;
-            string[] dir = Directory.GetDirectories(folderPath);
-            foreach (string s in dir)
+                // Get the current and next Edition //
+                using (var sr = new StreamReader(baseFolder + "\\DB Scripts\\Current Edition.txt"))
+                {
+                    currentEdition = sr.ReadLine();
+                    nextEdition = sr.ReadLine();
+                }
+
+                // Count number of schemas //
+                List<string> lynxFolderHold = new List<string>();
+                string folderPath = baseFolder + "\\DB Scripts\\10_Structure\\" + currentEdition;
+                string[] dir = Directory.GetDirectories(folderPath);
+                foreach (string s in dir)
+                {
+                    if (s.IndexOf("lynx", StringComparison.OrdinalIgnoreCase) != -1)
+                        lynxFolderHold.Add(s);
+                }
+
+                return lynxFolderHold;
+            }
+            catch (Exception e)
             {
-                if (s.IndexOf("lynx",StringComparison.OrdinalIgnoreCase) != -1)
-                    lynxFolderHold.Add(s);
+                Console.WriteLine(e.Message);
+                return null;
             }
-
-            return lynxFolderHold;
         }
 
         /// <summary>
@@ -356,17 +370,30 @@ namespace BrianBot
         /// <returns></returns>
         public List<string> GetCodeLynxFolders()
         {
-            // Count number of schemas //
-            List<string> lynxFolderHold = new List<string>();
-            string folderPath = @"Z:\BrianF\X Project\Architecture\Build Automation\$X\Database\Trunk\DB Scripts\20_Code";
-            string[] dir = Directory.GetDirectories(folderPath);
-            foreach (string s in dir)
+            try
             {
-                if (s.IndexOf("lynx", StringComparison.OrdinalIgnoreCase) != -1)
-                    lynxFolderHold.Add(s);
-            }
+                // For testing right now
+                XmlClass xClass = new XmlClass();
+                xClass.ReadFile();
+                string baseFolder = xClass.XmlValues["StartLocation"];
 
-            return lynxFolderHold;
+                // Count number of schemas //
+                List<string> lynxFolderHold = new List<string>();
+                string folderPath = baseFolder + "\\DB Scripts\\20_Code";
+                string[] dir = Directory.GetDirectories(folderPath);
+                foreach (string s in dir)
+                {
+                    if (s.IndexOf("lynx", StringComparison.OrdinalIgnoreCase) != -1)
+                        lynxFolderHold.Add(s);
+                }
+
+                return lynxFolderHold;
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+                return null;
+            }
         }
 
         /// <summary>

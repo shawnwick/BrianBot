@@ -79,7 +79,7 @@ namespace BrianBot
 
             ProcedureInputClass pic = new ProcedureInputClass();
             pic.numberOfParameters = 0;
-            pic.procedureName = "execute lynx.upgrade_pkg.qualify_database";
+            pic.procedureName = "lynx.upgrade_pkg.qualify_database";
             oc.NonQueryProcedure(pic);
 
             oc.NonQueryText("alter user lynx account unlock identified by dang3r");
