@@ -7,21 +7,12 @@ using System.Text.RegularExpressions;
 
 namespace BrianBot
 {
-    class FileConvertClass
+    class ConvertUpgradeFilesClass
     {
         #region Variables
 
         private string currentEdition;
-        public string CurrentEdition
-        {
-            get { return currentEdition; }
-        }
-        
         private string nextEdition;
-        public string NextEdition
-        {
-            get { return nextEdition; }
-        }
 
         private List<string> startInsert;
         private Dictionary<string, string> retryCount;
@@ -42,7 +33,7 @@ namespace BrianBot
         /// <summary>
         /// Constructor
         /// </summary>
-        public FileConvertClass()
+        public ConvertUpgradeFilesClass()
         {
             currentEdition = "";
             nextEdition = "";
@@ -424,7 +415,7 @@ namespace BrianBot
 
             // Get upgrade file //
             DirectoryInfo di = Directory.GetParent(lynxFolder);
-            string pdcFile = di.FullName + "\\05_UPGRADE\\50_run_upgrade_shawn.pdc";
+            string pdcFile = di.FullName + "\\05_UPGRADE\\50_run_upgrade.pdc";
             if (File.Exists(pdcFile))
             {
                 if (insertV.sectionNumber == 1)
@@ -436,7 +427,6 @@ namespace BrianBot
                 fs.Close();
             }
 
-            // Write to 05_UPGRADE/50_run_upgrade_shawn.pdc //
             using (StreamWriter sw = File.AppendText(pdcFile))
             {
                 string namePassword = "";
@@ -467,7 +457,7 @@ namespace BrianBot
 
             // Get finalized file //
             DirectoryInfo di = Directory.GetParent(folder);
-            string pdcFile = di.FullName + "\\05_UPGRADE\\60_run_finalization_shawn.pdc";
+            string pdcFile = di.FullName + "\\05_UPGRADE\\60_run_finalization.pdc";
             if (File.Exists(pdcFile))
             {
                 if (insertV.sectionNumber == 1)
@@ -479,7 +469,6 @@ namespace BrianBot
                 fs.Close();
             }
 
-            // Write to 05_UPGRADE/60_run_finalization_shawn.pdc //
             using (StreamWriter sw = File.AppendText(pdcFile))
             {
                 string namePassword = "";
