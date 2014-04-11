@@ -8,6 +8,7 @@ using System.Threading;
 using System.Speech.Synthesis;
 using System.Speech.AudioFormat;
 using System.IO;
+using System.Management.Automation;
 
 namespace BrianBot
 {
@@ -27,7 +28,7 @@ namespace BrianBot
             GetLocations();
             
             // Create Upgrade Package //
-            //UpdateTfs();
+            UpdateGit();
             ReadSqlFilesToInsert();
             ExecuteClrDll();
             ExportUpgradePackage();
@@ -41,6 +42,10 @@ namespace BrianBot
             //RunDoGrantsOnNew();
             //RunQualifyDatabaseAndUnlock();
             //RunUpgrade();
+
+            // Finalization //
+            //RunQualifyFinalization();
+            //RunFinalization();
 
             FunSoundsEnd();
             Console.WriteLine("** Brian Bot Finished, press enter to exit! **");
@@ -175,7 +180,7 @@ namespace BrianBot
             StartLocation = xClass.XmlValues["StartLocation"];
             OracleLocation = xClass.XmlValues["OracleLocation"];
 
-            using (var sr = new StreamReader(StartLocation + "\\DB Scripts\\Current Edition.txt"))
+            using (var sr = new StreamReader(StartLocation + "\\Current Edition.txt"))
             {
                 CurrentEdition = sr.ReadLine();
                 NextEdition = sr.ReadLine();
@@ -193,12 +198,31 @@ namespace BrianBot
         /// <summary>
         /// Run the batch file to update TFS with latest.
         /// </summary>
-        static void UpdateTfs()
+        static void UpdateGit()
         {
-            Console.WriteLine("Update TFS...");
-            Process p = Process.Start("getlatest_tfs.bat");
+            Console.WriteLine("Get the latest code from git.exe.");
+            XmlClass xClass = new XmlClass();
+            xClass.ReadFile();
+            
+            ProcessStartInfo pInfo = new ProcessStartInfo();
+            pInfo.FileName = xClass.XmlValues["GitLocation"];
+            pInfo.Arguments = "pull";
+            pInfo.WorkingDirectory = xClass.XmlValues["RepoLocation"];
+
+            pInfo.UseShellExecute = false;
+            pInfo.CreateNoWindow = true;
+            pInfo.RedirectStandardError = true;
+            pInfo.RedirectStandardOutput = true;
+
+            Process p = new Process();
+            p.StartInfo = pInfo;
+            p.OutputDataReceived += new DataReceivedEventHandler(Display);
+            p.ErrorDataReceived += new DataReceivedEventHandler(Display);
+            p.Start();
+            p.BeginOutputReadLine();
+            p.BeginErrorReadLine();
+
             p.WaitForExit();
-            Console.WriteLine("TFS has been updated!");
         }
 
         /// <summary>
@@ -249,17 +273,37 @@ namespace BrianBot
             Console.WriteLine("Create an Export dmp file...");
 
             string fileName = "upg_" + CurrentEdition + "_" + NextEdition;
+
+            ProcessStartInfo pInfo = new ProcessStartInfo();
+            pInfo.FileName = "expdp.exe";
+            pInfo.WorkingDirectory = OracleLocation;
+            pInfo.Arguments = "lynx@beta/dang3r DUMPFILE=" + fileName + ".dmp LOGFILE=" + fileName + ".log REUSE_DUMPFILES=YES";
+            pInfo.UseShellExecute = false;
+            pInfo.CreateNoWindow = true;
+            pInfo.RedirectStandardError = true;
+            pInfo.RedirectStandardOutput = true;
+
             Process p = new Process();
-            p.StartInfo.FileName = "expdp.exe";
-            p.StartInfo.WorkingDirectory = OracleLocation;
-            p.StartInfo.Arguments = "lynx@beta/dang3r DUMPFILE=" + fileName + ".dmp LOGFILE=" + fileName + ".log REUSE_DUMPFILES=YES";
+            p.StartInfo = pInfo;
+            p.OutputDataReceived += new DataReceivedEventHandler(Display);
+            p.ErrorDataReceived += new DataReceivedEventHandler(Display);
             p.Start();
+            p.BeginOutputReadLine();
+            p.BeginErrorReadLine();
+
             p.WaitForExit();
 
-            // Need to move dmp file after it is created to repository:
-            //string savelocation = StartLocation + "\\DB_Upgrades\\E07_to_E08";
-
             Console.WriteLine("Export dmp file has been created!");
+        }
+
+        /// <summary>
+        /// Display the process output data.
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="args"></param>
+        static void Display(object sender, DataReceivedEventArgs args)
+        {
+            Console.WriteLine(args.Data);
         }
 
         #endregion
@@ -314,7 +358,7 @@ namespace BrianBot
         /// </summary>
         static void RunDropPriorUpgrade()
         {
-            string dropLocation = StartLocation + "\\DB Scripts\\10_Structure\\" + CurrentEdition + "\\05_UPGRADE\\10_drop_prior_upgrade_objects.pdc";
+            string dropLocation = StartLocation + "\\10_Structure\\" + CurrentEdition + "\\05_UPGRADE\\10_drop_prior_upgrade_objects.pdc";
 
             if (File.Exists(dropLocation))
             {
@@ -388,7 +432,7 @@ namespace BrianBot
         /// </summary>
         static void RunDoGrantsOnNew()
         {
-            string dropLocation = StartLocation + "\\DB Scripts\\10_Structure\\" + CurrentEdition + "\\05_UPGRADE\\30_do_grants_on_new_objects.pdc";
+            string dropLocation = StartLocation + "\\10_Structure\\" + CurrentEdition + "\\05_UPGRADE\\30_do_grants_on_new_objects.pdc";
 
             if (File.Exists(dropLocation))
             {
@@ -416,7 +460,7 @@ namespace BrianBot
         /// </summary>
         static void RunQualifyDatabaseAndUnlock()
         {
-            string dropLocation = StartLocation + "\\DB Scripts\\10_Structure\\" + CurrentEdition + "\\05_UPGRADE\\40_qualify_database_and_unlock_.pdc";
+            string dropLocation = StartLocation + "\\10_Structure\\" + CurrentEdition + "\\05_UPGRADE\\40_qualify_database_and_unlock_.pdc";
 
             if (File.Exists(dropLocation))
             {
@@ -455,8 +499,8 @@ namespace BrianBot
         /// </summary>
         static void RunUpgrade()
         {
-            //string dropLocation = StartLocation + "\\DB Scripts\\10_Structure\\" + CurrentEdition + "\\05_UPGRADE\\50_run_upgrade.pdc";
-            string dropLocation = StartLocation + "\\DB Scripts\\10_Structure\\" + CurrentEdition + "\\05_UPGRADE\\50_run_upgrade_original.pdc";
+            //string dropLocation = StartLocation + "\\10_Structure\\" + CurrentEdition + "\\05_UPGRADE\\50_run_upgrade.pdc";
+            string dropLocation = StartLocation + "\\10_Structure\\" + CurrentEdition + "\\05_UPGRADE\\50_run_upgrade_original.pdc";
 
             if (File.Exists(dropLocation))
             {
@@ -518,6 +562,104 @@ namespace BrianBot
 
         #endregion
 
+        #region Finalized Section
+
+        /***********************************************************************/
+        // Finalized Section 
+        /***********************************************************************/
+
+        /// <summary>
+        /// 
+        /// </summary>
+        static void RunQualifyFinalization()
+        {
+            Console.WriteLine("Running UPGRADE_PKG.Qualify_Finalization ...");
+
+            //OracleClass oc = new OracleClass();
+            //oc.Connect();
+            //oc.tran = oc.conn.BeginTransaction();
+
+            //ProcedureInputClass pic = new ProcedureInputClass();
+            //pic.numberOfParameters = 0;
+            //pic.procedureName = "lynx.store_clr_dlls";
+            //oc.NonQueryProcedure(pic);
+
+            //oc.tran.Commit();
+            //oc.conn.Close();
+
+            //Console.WriteLine("Finished lynx.store_clr_dlls.");
+        }
+
+        /// <summary>
+        /// Open 50_run_upgrade.pdc and Parse and run each line.
+        /// </summary>
+        static void RunFinalization()
+        {
+            // since this is the same as run upgrade should be able to combine them and just pass the file location.
+            
+            //string dropLocation = StartLocation + "\\10_Structure\\" + CurrentEdition + "\\05_UPGRADE\\60_run_finalization.pdc";
+            string dropLocation = StartLocation + "\\10_Structure\\" + CurrentEdition + "\\05_UPGRADE\\60_run_finalization_original.pdc";
+
+            if (File.Exists(dropLocation))
+            {
+                string readLine;
+                OracleClass oc = new OracleClass();
+
+                using (StreamReader dpuFile = new StreamReader(dropLocation))
+                {
+                    while ((readLine = dpuFile.ReadLine()) != null)
+                    {
+                        readLine = readLine.Replace(";", "");
+
+                        if (readLine.IndexOf("connect", StringComparison.OrdinalIgnoreCase) != -1)
+                        {
+                            // Connect with edition or normal //
+                            readLine = readLine.Remove(0, 8);
+                            string UserId = readLine.Remove(readLine.IndexOf("/"));
+                            string Password = readLine.Remove(0, readLine.IndexOf("/") + 1);
+                            string Edition = "";
+                            if (Password.IndexOf("edition") != -1)
+                            {
+                                // Parse out edition //
+                                Edition = Password.Remove(0, Password.IndexOf("edition"));
+                                Password = Password.Remove(Password.IndexOf("edition") - 1);
+                            }
+
+                            // Now try to connect //
+                            //oc.Connect(UserId, Password, Edition);
+                        }
+                        else if (readLine.IndexOf("execute", StringComparison.OrdinalIgnoreCase) != -1)
+                        {
+                            //oc.tran = oc.conn.BeginTransaction();
+
+                            // execute with a parameter (x) //
+                            readLine = readLine.Remove(0, 8);
+
+                            string proName = readLine.Remove(readLine.IndexOf("("));
+                            string paramNum = readLine.Remove(0, readLine.IndexOf("(") + 1);
+                            paramNum = paramNum.Remove(1);
+
+                            ProcedureInputClass pic = new ProcedureInputClass();
+                            pic.parameterName = new List<string>();
+                            pic.parameterValue = new List<int>();
+                            pic.numberOfParameters = 1;
+                            pic.parameterName.Add("i_section_number");
+                            pic.parameterValue.Add(Convert.ToInt32(paramNum));
+                            pic.procedureName = proName;
+
+                            oc.NonQueryProcedure(pic);
+
+                            //oc.tran.Commit();
+                            //oc.conn.Close();
+                        }
+
+                    }
+                }
+            }
+        }
+
+        #endregion
+
         /*******************************************************************************************************/
         /*******************************************************************************************************/
         /********************************************************************************************************
@@ -539,6 +681,10 @@ namespace BrianBot
         {
             // sql plus test //
             // lynx_app@SVR1/f3line
+
+            // TFS get latest batch file:
+            //cd "C:\Program Files <x86>\Microsoft Visual Studio 10.0\Common7\IDE"
+            //TF.exe get $/X/Trunk /force
 
             // impdp and expdp tools for oracle
             // this location should be in the config file?

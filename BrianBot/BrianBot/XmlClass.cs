@@ -33,8 +33,10 @@ namespace BrianBot
             XmlValues.Add("Protocol", "TCP");
             XmlValues.Add("Port", "1521");
             XmlValues.Add("ServiceName", "pldb");
-            XmlValues.Add("StartLocation", @"\\pl2600\Users\BrianF\X Project\Architecture\Build Automation\$X\Database\Trunk");
+            XmlValues.Add("StartLocation", @"\\pl2600\Users\BrianF\X Project\Architecture\Build Automation\Sample Source Control Structure\PLX_Dev\Database");
             XmlValues.Add("OracleLocation", @"C:\app\SScribner\product\11.2.0\client_1\BIN");
+            XmlValues.Add("GitLocation", @"C:\Program Files (x86)\Git\bin\git.exe");
+            XmlValues.Add("RepoLocation", @"C:\Work\GitHub\BrianBot");
         }
 
         /// <summary>

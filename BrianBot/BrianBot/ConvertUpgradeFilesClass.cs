@@ -340,7 +340,7 @@ namespace BrianBot
                 string baseFolder = xClass.XmlValues["StartLocation"];
 
                 // Get the current and next Edition //
-                using (var sr = new StreamReader(baseFolder + "\\DB Scripts\\Current Edition.txt"))
+                using (var sr = new StreamReader(baseFolder + "\\Current Edition.txt"))
                 {
                     currentEdition = sr.ReadLine();
                     nextEdition = sr.ReadLine();
@@ -348,7 +348,7 @@ namespace BrianBot
 
                 // Count number of schemas //
                 List<string> lynxFolderHold = new List<string>();
-                string folderPath = baseFolder + "\\DB Scripts\\10_Structure\\" + currentEdition;
+                string folderPath = baseFolder + "\\10_Structure\\" + currentEdition;
                 string[] dir = Directory.GetDirectories(folderPath);
                 foreach (string s in dir)
                 {
@@ -380,7 +380,7 @@ namespace BrianBot
 
                 // Count number of schemas //
                 List<string> lynxFolderHold = new List<string>();
-                string folderPath = baseFolder + "\\DB Scripts\\20_Code";
+                string folderPath = baseFolder + "\\20_Code";
                 string[] dir = Directory.GetDirectories(folderPath);
                 foreach (string s in dir)
                 {
